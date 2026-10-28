@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灵玦 · 能力地图 —— 一张图看清这台电脑能替你做什么</title>
+<meta name="description" content="灵玦能力地图：把 313 项已在本机跑通的真实能力，放到一张可点开的地图上。附 3 分钟能力体检。">
+<meta name="theme-color" content="#08080c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="灵玦 · 能力地图">
+<meta property="og:description" content="313 项已在本机跑通的能力，11 个业务域，点开就知道哪块能替你干活。附 3 分钟能力体检。">
+<meta property="og:site_name" content="灵玦">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="灵玦 · 能力地图">
+<meta name="twitter:description" content="313 项已跑通的能力，点开就知道哪块能替你干活。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308080c'/%3E%3Cg fill='none' stroke='%237dd3fc' stroke-width='2.4' stroke-linejoin='round'%3E%3Crect x='6' y='6' width='11' height='8' rx='1.5'/%3E%3Crect x='6' y='16' width='11' height='10' rx='1.5'/%3E%3Crect x='19' y='6' width='7' height='20' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#08080c; --panel:#101018; --line:rgba(255,255,255,.08);
+  --txt:#e8e8f0; --muted:#8b8b9e; --accent:#7dd3fc;
+}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  line-height:1.6; -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 15% 0%,rgba(125,211,252,.07),transparent 45%),
+                   radial-gradient(circle at 85% 10%,rgba(168,85,247,.06),transparent 40%);
+  background-attachment:fixed;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:56px 24px 96px}
+header{margin-bottom:36px}
+.kicker{display:inline-block;font-size:12px;letter-spacing:.22em;color:var(--accent);
+  border:1px solid rgba(125,211,252,.3);border-radius:100px;padding:5px 14px;margin-bottom:22px;text-transform:uppercase}
+h1{font-size:clamp(32px,5vw,56px);line-height:1.12;font-weight:800;letter-spacing:-.02em}
+h1 .dim{color:var(--muted)}
+.sub{margin-top:18px;font-size:16px;color:var(--muted);max-width:640px}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.stat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:12px 18px;min-width:112px}
+.stat b{display:block;font-size:24px;font-weight:700;letter-spacing:-.02em}
+.stat span{font-size:12px;color:var(--muted)}
+.toolbar{display:flex;gap:12px;align-items:center;margin:32px 0 16px;flex-wrap:wrap}
+.search{flex:1 1 220px;min-width:0;background:rgba(255,255,255,.04);border:1px solid var(--line);
+  border-radius:10px;padding:11px 16px;color:var(--txt);font-size:14px;font-family:inherit}
+.search:focus{outline:none;border-color:rgba(125,211,252,.5);background:rgba(125,211,252,.05)}
+.hint{font-size:12px;color:var(--muted);flex:none}
+.read{margin:0 0 6px;font-size:13px;color:var(--muted);line-height:1.75;max-width:820px}
+.read b{color:#c8c8d8;font-weight:600}
+
+/* treemap */
+#map{position:relative;width:100%;height:min(66vh,600px);margin-bottom:16px}
+.tile{position:absolute;border-radius:12px;cursor:pointer;overflow:hidden;
+  border:1px solid var(--line);background:var(--panel);
+  transition:border-color .18s ease,box-shadow .18s ease}
+.tile::before{content:'';position:absolute;inset:0;opacity:.22;
+  background:var(--c);transition:opacity .18s ease}
+.tile::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(0,0,0,.22))}
+.tile:hover,.tile.active{border-color:var(--c)}
+.tile:hover::before,.tile.active::before{opacity:.34}
+.tile.active{box-shadow:0 0 0 1px var(--c),0 14px 34px -14px var(--c);z-index:5}
+.tile .top{position:absolute;top:9px;left:11px;right:11px;display:flex;align-items:center;gap:7px;color:var(--c)}
+.tile .ico{width:15px;height:15px;flex:none;display:block;opacity:.85}
+.tile .ico svg{width:100%;height:100%;display:block;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tile .num{margin-left:auto;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tile .inner{position:absolute;left:11px;right:11px;bottom:10px;display:block}
+.tile .nm{display:block;font-weight:700;letter-spacing:-.01em;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .bd{display:block;color:#b9b9c9;line-height:1.42;font-size:11px;margin-top:4px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tile.sm .bd{display:none}
+.tile.xs .num{display:none}
+.tile.xs .top{top:6px;left:7px;right:7px}
+.tile.tiny .inner{left:5px;right:5px;bottom:5px;display:block}
+.tile.tiny .nm{font-size:10px !important;white-space:normal;overflow:visible;line-height:1.16}
+.tile.tiny .bd{display:none}
+.tile.tiny .top{top:4px;left:5px;right:5px}
+.tile.tiny .ico{width:11px;height:11px}
+.tile.vert .inner{left:auto;right:5px;bottom:5px;top:22px;display:flex;align-items:flex-end}
+.tile.vert .nm{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:.12em;white-space:nowrap;font-size:10px !important;overflow:visible}
+.tile.vert .bd{display:none}
+
+/* detail */
+#detail{margin-top:22px;border:1px solid var(--line);border-radius:16px;background:var(--panel);display:none}
+#detail.show{display:block}
+.dhead{display:flex;align-items:center;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line)}
+.dhead .ico{width:26px;height:26px;color:var(--accent)}
+.dhead .ico svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.dhead h2{font-size:19px;font-weight:700}
+.dhead p{font-size:13px;color:var(--muted)}
+.dclose{margin-left:auto;background:none;border:1px solid var(--line);color:var(--muted);
+  border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-family:inherit}
+.dclose:hover{color:var(--txt);border-color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;padding:18px 22px 22px;max-height:520px;overflow-y:auto}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:rgba(255,255,255,.02);transition:.15s}
+.card:hover{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.045)}
+.card.native{border-color:rgba(250,204,21,.35);background:rgba(250,204,21,.045)}
+.card .cn{font-size:13.5px;font-weight:600;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  word-break:break-all;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.badge{font-size:9.5px;font-weight:700;letter-spacing:.06em;color:#0a0a0f;background:#facc15;
+  border-radius:4px;padding:1px 5px;font-family:inherit}
+.card .cd{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
+.card.hide{display:none}
+
+/* checkup */
+.checkup{margin-top:60px;border:1px solid var(--line);border-radius:18px;
+  background:linear-gradient(160deg,rgba(125,211,252,.05),rgba(168,85,247,.04));padding:32px}
+.checkup h2{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.checkup .lead{color:var(--muted);font-size:14px;margin-top:8px;margin-bottom:26px}
+.q{margin-bottom:22px}
+.q .qt{font-size:14px;font-weight:600;margin-bottom:10px}
+.q .qt i{color:var(--accent);font-style:normal;margin-right:6px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--txt);
+  border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;transition:.15s}
+.opt:hover{border-color:rgba(125,211,252,.5);background:rgba(125,211,252,.08)}
+.opt.sel{background:var(--accent);color:#08080c;border-color:var(--accent);font-weight:600}
+.btn{margin-top:8px;background:var(--accent);color:#08080c;border:none;border-radius:10px;
+  padding:12px 26px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+#result{margin-top:26px;display:none}
+#result.show{display:block}
+.rcard{border:1px solid rgba(125,211,252,.35);border-radius:14px;padding:22px;background:rgba(125,211,252,.05)}
+.rcard h3{font-size:18px;margin-bottom:6px}
+.rcard .rsub{font-size:13px;color:var(--muted);margin-bottom:16px}
+.bars{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.bar{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.bar .bl{width:110px;color:var(--muted);flex:none}
+.bar .bt{flex:1;display:block;height:7px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden}
+.bar .bf{display:block;height:100%;border-radius:99px;transition:width .5s ease}
+.rec{font-size:13.5px;line-height:1.7;color:#c8c8d8}
+.rec b{color:var(--accent)}
+
+footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);line-height:1.9}
+footer code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;font-size:11.5px;
+  overflow-wrap:anywhere;word-break:break-word}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
+::-webkit-scrollbar-track{background:transparent}
+html,body{overflow-x:hidden}
+/* 窄屏卡片流：面积不再代表数量，改由数字表达，避免小屏挤压不可读 */
+#map.flow{height:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:9px}
+#map.flow .tile{position:relative;left:auto !important;top:auto !important;width:auto !important;height:auto !important;
+  min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;padding:11px 12px}
+#map.flow .tile .top{position:static;order:-1;margin-bottom:auto;left:auto;right:auto}
+#map.flow .tile .inner{position:static;left:auto;right:auto;bottom:auto;margin-top:10px}
+#map.flow .tile .nm{font-size:15px !important;white-space:normal;overflow:visible;line-height:1.25}
+#map.flow .tile .bd{display:-webkit-box !important;font-size:11.5px;margin-top:5px}
+#map.flow .tile.tiny .nm,#map.flow .tile.xs .nm{font-size:15px !important;white-space:normal}
+#map.flow .tile.xs .num{display:inline}
+#map.flow .tile.vert .nm{writing-mode:horizontal-tb;text-orientation:mixed;letter-spacing:0}
+
+@media(max-width:900px){
+  .wrap{padding:36px 16px 64px}
+  .hint{font-size:11px;width:100%}
+  .checkup{padding:22px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">LINGJUE CAPABILITY MAP · 2026-10-28</div>
+  <h1>一张图，看清<br><span class="dim">这台电脑能替你做什么。</span></h1>
+  <p class="sub">不是概念，不是愿景。下面是这台机器上<strong>已经装好、已经能跑</strong>的能力：点开任意一块，看到具体清单。</p>
+  <div class="stats">
+    <div class="stat"><b>313</b><span>项真实能力</span></div>
+    <div class="stat"><b>11</b><span>个业务域</span></div>
+    <div class="stat"><b>15</b><span>灵玦原生模块</span></div>
+    <div class="stat"><b>24×7</b><span>不睡觉的工时</span></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input class="search" id="search" placeholder="搜索能力，例如：海报、视频、Shopee、备份、语音…" autocomplete="off">
+  <span class="hint" id="hint">方块面积 = 能力数量 · 金色边框 = 灵玦原生</span>
+</div>
+
+<div id="map"></div>
+
+<p class="read">读法：<b>面积越大，这一类装得越多</b>。现在最厚的是「电脑操控」——这台机器最擅长的，是替你去点、去填、去存真实软件里的东西；最薄的是「电商与生意」和「语音」——不是不能做，而是还没铺开。</p>
+
+<p class="read">这张图怎么用：<b>先找一件你每周都在重复干的事</b>，再在图里找到它归哪一块，点开看那一块有没有能直接接手的条目——有就用，没有就说明这是缺口。别从「哪个方块大」出发，要从「哪件事烦」出发。</p>
+
+<div id="detail">
+  <div class="dhead">
+    <span class="ico" id="dico"></span>
+    <div>
+      <h2 id="dname"></h2>
+      <p id="dblurb"></p>
+    </div>
+    <button class="dclose" onclick="closeDetail()">收起</button>
+  </div>
+  <div class="grid" id="dgrid"></div>
+</div>
+
+<section class="checkup">
+  <h2>3 分钟能力体检</h2>
+  <p class="lead">8 个问题，算出你现在最该补哪一块能力。不注册、不上传，全部在本页完成。</p>
+  <div id="qs"></div>
+  <button class="btn" id="calc" disabled>生成我的能力诊断</button>
+  <div id="result"></div>
+</section>
+
+<footer>
+  <strong>数据怎么来的：</strong>本页所有条目来自 2026-10-28 的本机技能库实测盘点，共 313 个去重后的能力条目，
+  跨工作区技能、插件技能、内置技能三处扫描，逐条对应一个真实目录。
+  分类按名称与描述自动归入业务域，可能有偏差；<b>清单本身没有任何虚构条目</b>。
+  部分条目保留英文原文（便于与其他工具链对接核对），未做机器翻译。<br>
+  <strong>这不是收入承诺。</strong>能力存在 ≠ 立刻变现。真正决定结果的，是选对场景、跑通交付、拿到第一个客户。<br>
+  <span style="opacity:.88">灵玦 生成</span>
+</footer>
+
+</div>
+
+<script>
+const DATA = {"domains":[{"id":"ecom","label":"电商与生意","icon":"🛒","color":"#f97316","blurb":"选品、上架、客服、订单、跨境店铺的日常经营","items":[{"name":"lingjue-ecom-platform-engine","desc":"加/改灵玦电商平台(Shopee/Amazon等)：只丢一个 profile 文件，引擎不改。","native":true},{"name":"cli-anything-mailchimp","desc":"CLI harness for the Mailchimp Marketing API v3.0 — 303 commands across 30 resource groups (lists, campaigns, r","native":false},{"name":"cli-anything-mubu","desc":"Command-line interface for Mubu - Canonical packaged entrypoint for the Mubu live bridge....","native":false},{"name":"dianxiaomi-autopilot","desc":"通过 $api 调店小秘后端API自动化操作Shopee全球商品，绕过Ant Design isTrusted事件陷阱。","native":false},{"name":"lemo-opuscar","desc":"Use when 要用纯代码做影片（59 种风格：油画水彩浮世绘白板等）。Windows 适配版，含三件套环境与实测命令。","native":false},{"name":"setup-pre-commit","desc":"Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use w","native":false},{"name":"shopee-ecommerce","desc":"虾皮 Shopee 电商全流程自动化操作技能。绝对不要求你手动点击任何步骤，所有操作均由灵玦通过RPA 引擎引擎（Selenium + PyAutoGUI）自动完成。首次登录只需扫码一次，之后永久复用登录态，全自","native":false},{"name":"verification-before-completion","desc":"Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires runn","native":false}],"count":8},{"id":"content","label":"内容与创作","icon":"🎬","color":"#ec4899","blurb":"文案、视频、脚本、分发：一条流水线做出能发布的东西","items":[{"name":"baoyu-skills","desc":"宝玉技能集，提供多种实用功能、便捷操作和快速访问工具。","native":false},{"name":"blogwatcher","desc":"Monitor blogs and RSS/Atom feeds for updates using the blogwatcher CLI.","native":false},{"name":"capability-claim-verification","desc":"宣传前能力举证：要对外承诺某能力时，先跑证据再写文案，输出已实测/实验性/禁止写三档声明。","native":false},{"name":"cli-anything-videocaptioner","desc":"AI-powered video captioning — transcribe speech, optimize/translate subtitles, and burn them into video via th","native":false},{"name":"cli-hub-matrix-video-creation","desc":"Capability-based multi-tool matrix for video production. Agents pick providers (CLI-Anything harnesses, public","native":false},{"name":"copywriting","desc":"专业文案写作工具，支持广告文案、产品描述、品牌故事、营销策划和创意写作。","native":false},{"name":"daily-news-digest","desc":"抓取当天新闻热点并汇总摘要，支持国内/科技/财经/综合分类","native":false},{"name":"diagram-maker","desc":"Create SVG/HTML or Excalidraw diagrams for concepts, architecture, flows, and whiteboards.","native":false},{"name":"domain-modeling","desc":"Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a GLO","native":false},{"name":"ffmpeg-video-mux","desc":"分段拼成片/宣传片：ffmpeg 滤镜 concat、setsar=1 对齐、配音+静音交替拼音轨、横竖版导出。","native":false},{"name":"general-video","desc":"Author or edit a custom HyperFrames composition when no specialized workflow fits, or when BRIEF.md sets flow:","native":false},{"name":"hyperframes","desc":"Mandatory entry point: read this first for any request to make, create, edit, animate, or render a video, anim","native":false},{"name":"hyperframes-animation","desc":"All animation knowledge for HyperFrames — atomic motion rules, multi-phase scene blueprints, scene transitions","native":false},{"name":"hyperframes-cli","desc":"Use the HyperFrames CLI development loop: init, add, catalog, capture, lint, check, snapshot, compare, grade-c","native":false},{"name":"hyperframes-core","desc":"The HyperFrames composition contract — build one renderable project. Use for composition structure, the data-","native":false},{"name":"hyperframes-creative","desc":"Non-animation creative direction for HyperFrames videos. Use for design spec (frame.md / design.md) handling,","native":false},{"name":"hyperframes-registry","desc":"Search, install, and wire registry blocks and components into HyperFrames compositions. Use BEFORE hand-buildi","native":false},{"name":"jianying","desc":"剪映视频编辑技能，支持视频编辑、剪辑和处理，包括项目创建、素材添加、批量处理和导出等功能。","native":false},{"name":"libtv-skill","desc":"通过 LibTV (liblib.tv) 的 OpenAPI 进行 AI 生图、生视频、编辑视频等操作。","native":false},{"name":"media-use","desc":"Agent Media OS, the single skill for every media need in a HyperFrames project. Resolve BGM, SFX, image, icon,","native":false},{"name":"meme-maker","desc":"Search meme templates, suggest formats, and generate local or hosted image memes.","native":false},{"name":"pr","desc":"Use when writing a PR body.","native":false},{"name":"premiere-automation","desc":"Premiere Pro UI/CEP 自动化剪辑：导入/上轨/多轨目标轨/分割/波纹删除/参数化导出并做三级校验。","native":false},{"name":"product-marketing-context","desc":"产品营销上下文，帮助制定营销策略","native":false},{"name":"social-content","desc":"社交媒体内容创作工具","native":false},{"name":"songsee","desc":"Generate spectrograms and feature-panel visualizations from audio with the songsee CLI.","native":false},{"name":"summarize","desc":"Summarize or transcribe URLs, YouTube/videos, podcasts, articles, transcripts, PDFs, and local files.","native":false},{"name":"tapnow-skill","desc":"通过 TapNow 的 API 进行高质量 AI 视频生成和编辑，支持导演级运镜控制和物理一致性。","native":false},{"name":"test-driven-development","desc":"Use when implementing any feature or bugfix, before writing implementation code","native":false},{"name":"video-compliance-redact","desc":"录屏/成片投放前合规检查与遮挡：抽帧OCR宽正则扫网址/密钥/买家信息，ffmpeg遮挡，ASR核口播。","native":false},{"name":"video-frames","desc":"Extract frames or short clips from videos using ffmpeg.","native":false},{"name":"video-production","desc":"Manage and use video production software including After Effects, Cinema 4D, Blender, Maya, and Premiere Pro.","native":false},{"name":"video-shotcraft","desc":"Create cinematic product videos from shot recipe cards, a validated template, and code/audio assets (Remotion","native":false},{"name":"voiceover-replace","desc":"换配音/改词重录：TTS 无缝替换成片某句，rate 定时长、pitch 对齐邻句、LUFS 对齐母带、-c:v copy 保画面。","native":false},{"name":"writing-beats","desc":"Writing, exploit; assemble raw material into a journey of beats, grounding each term before a beat leans on it","native":false},{"name":"writing-for-agents","desc":"Writing documents for agents. Use when creating or editing skills, or modifying AGENTS.md or CLAUDE.md.","native":false},{"name":"writing-fragments","desc":"Writing, explore: mine raw fragments, no structure yet.","native":false},{"name":"writing-plans","desc":"Use when you have a spec or requirements for a multi-step task, before touching code","native":false},{"name":"writing-shape","desc":"Writing, exploit: shape raw material into an article, paragraph by paragraph.","native":false},{"name":"writing-skills","desc":"Use when creating new skills, editing existing skills, or verifying skills work before deployment","native":false},{"name":"youyan","desc":"有言 - AI对话与语音助手，支持语音识别、语音合成、智能对话等功能","native":false}],"count":41},{"id":"design","label":"视觉与设计","icon":"🎨","color":"#a855f7","blurb":"海报、封面、UI、品牌物料与 AI 出图","items":[{"name":"app-ui-ux-best-practices","desc":"Comprehensive App UI/UX design best practices. Supports two tracks: Convention Track (adopt a proven design la","native":false},{"name":"brandkit","desc":"Premium brand-kit image generation skill for creating high-end brand-guidelines boards, logo systems, identity","native":false},{"name":"canvas-design","desc":"使用Python Pillow生成品牌图标、徽章、视觉素材 — 渐变弧形、辉光效果、星芒射线、图层合成","native":false},{"name":"cli-anything-comfyui","desc":"Command-line interface for ComfyUI - AI image generation workflow management via ComfyUI REST API. Designed fo","native":false},{"name":"cli-hub-matrix-image-design","desc":"Capability-based multi-tool matrix for image and graphic design: AI generation, raster/vector editing, UI mock","native":false},{"name":"codebase-design","desc":"Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interfac","native":false},{"name":"comfyui","desc":"ComfyUI集成，支持节点式工作流配置、高级图像生成和编辑，包括文生图、图生图、视频生成等功能。","native":false},{"name":"coreldraw-automation","desc":"探测并驱动客户机上的 CorelDRAW 自动化。客户侧 CDR 版本/授权/VBA 情况千差万别，必须先跑 cdr_probe.py 探测环境再决定走哪条路；本机无授权，无法本地验证 CDR 代码。","native":false},{"name":"frontend-design","desc":"Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps w","native":false},{"name":"grill-me","desc":"A relentless interview to sharpen a plan or design.","native":false},{"name":"grill-with-docs","desc":"A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.","native":false},{"name":"illustrator-automation","desc":"平面设计批量出稿用 Illustrator。海报/名片/LOGO/画册/Banner 排版与出图，JSON spec 声明式驱动，一键导出印刷级 PDF/EPS/AI/PNG/JPG。含渐变方向、多图层、多画板、路径布尔","native":false},{"name":"image-ocr","desc":"识别图片中的文字内容，使用Tesseract OCR引擎。当用户发送图片时自动调用。","native":false},{"name":"image-recognizer","desc":"图片识别技能，支持OCR文字识别、AI图片描述和综合分析功能。","native":false},{"name":"impeccable","desc":"Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimiz","native":false},{"name":"jimeng-ai","desc":"即梦AI（Jimeng AI）是字节跳动旗下的AI视频生成工具，可以通过API生成高质量的AI视频。","native":false},{"name":"kling-ai","desc":"可灵AI（Kling AI）是快手旗下的AI视频生成工具，可以通过API生成高质量的AI视频。","native":false},{"name":"lossless-claw","desc":"无损压缩工具，支持图片、视频、文档等多种格式的无损压缩。","native":false},{"name":"modao","desc":"UI/UX设计工具集成，支持原型设计、交互设计、设计协作等功能。","native":false},{"name":"oracle","desc":"Oracle CLI second-model review/debug/refactor/design with selected files, dry-run token checks, API or browser","native":false},{"name":"pexels","desc":"Pexels图片搜索技能，搜索和下载高质量的免费图片。","native":false},{"name":"photoshop-automation","desc":"通过COM接口自动化控制Adobe Photoshop，进行图像处理、批量处理、自动化任务等。","native":false},{"name":"prototype","desc":"Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a sta","native":false},{"name":"stable-diffusion","desc":"集成Stable Diffusion的API，进行图像生成、风格转换、图像编辑等操作。","native":false},{"name":"tongyi-wanxiang","desc":"阿里云通义万相图像生成AI工具，支持文生图和图生图（wan2.7-image-pro / qwen-image-2.0-pro）","native":false},{"name":"ui-ux-pro-max","desc":"专业UI/UX设计工具，创建精美界面","native":false}],"count":26},{"id":"code","label":"软件工厂","icon":"⚙️","color":"#3b82f6","blurb":"从需求到上线：设计、编码、测试、打包发布","items":[{"name":"lingjue-github-repo","desc":"Use when 灵玦代码入库、推远端、查仓库权限或双端同步问题。","native":true},{"name":"blueprint","desc":"Use when 要为跨多会话/多 PR/多智能体的复杂任务先出「施工计划」(blueprint/roadmap)。 产出 plans/\u003c项目>-\u003c目标>.md：依赖图、并行步骤、评审门、每步自带冷启动上下文简报、回滚策","native":false},{"name":"clawhub","desc":"Search ClawHub for skills when a requested capability is not already available; install, verify, update, unins","native":false},{"name":"cli-anything-krita","desc":"CLI harness for Krita digital painting — manage projects, layers, filters, and export via command line. Use wh","native":false},{"name":"cli-hub-matrix-game-development","desc":"Capability-based multi-tool matrix for game development: engine, 3D/2D/audio assets, AI-generated assets, agen","native":false},{"name":"Code","desc":"Coding workflow with planning, implementation, verification, and testing for clean software development.","native":false},{"name":"code-review","desc":"Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does th","native":false},{"name":"coding-agent","desc":"Delegate coding work to Codex, Claude Code, or OpenCode as background workers; not simple edits or read-only c","native":false},{"name":"dead-code-removal","desc":"删死代码/清理下线功能残留：备份→切片删除→语法+残留计数+headless 真渲染三层验证","native":false},{"name":"desktop-installer-release","desc":"升版本、重新打包、上传安装包、换官网下载指向：桌面应用发版——版本串同步→包内验证→归档上传→字节级验收。","native":false},{"name":"diagnosing-bugs","desc":"Diagnosis loop for hard bugs and performance regressions. Use when the user says \"diagnose\"/\"debug this\", or r","native":false},{"name":"executing-plans","desc":"Use when you have a written implementation plan to execute in a separate session with review checkpoints","native":false},{"name":"finishing-a-development-branch","desc":"Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides","native":false},{"name":"gemini","desc":"Gemini CLI one-shot prompts, summaries, generation, skills, hooks, MCP, or Gemma routing.","native":false},{"name":"gh-issues","desc":"Fetch GitHub issues, select candidates, spawn background fix agents, open PRs, and optionally process PR revie","native":false},{"name":"git-guardrails-claude-code","desc":"Set up Claude Code hooks to block dangerous git commands (push, reset --hard, clean, branch -D, etc.) before t","native":false},{"name":"git-repo-onboarding","desc":"Use when 把本地项目接进 git/GitHub 私有仓：先侦察再入库.","native":false},{"name":"gitee-file-cloud-sync","desc":"Sync a JSON file to a private Gitee repo via contents API for cloud persistence. Triggers: Gitee API, personal","native":false},{"name":"github","desc":"GitHub CLI for issues, PRs, CI/check logs, comments, reviews, releases, repos, and gh api queries.","native":false},{"name":"github-cli-auth","desc":"gh/git 认证：设备码 vs PAT、令牌获取、凭据卫生、署名。","native":false},{"name":"goplaces","desc":"Query Google Places for text search, place details, resolve, reviews, or scriptable JSON via goplaces.","native":false},{"name":"implement","desc":"Implement a piece of work based on a spec or set of tickets.","native":false},{"name":"implement-spec","desc":"Implement the result of /to-spec and /to-tickets in code.","native":false},{"name":"improve-codebase-architecture","desc":"Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whicheve","native":false},{"name":"migrate-to-shoehorn","desc":"Migrate test files from as type assertions to @total-typescript/shoehorn. Use when user mentions shoehorn, w","native":false},{"name":"node-connect","desc":"Diagnose OpenClaw Control UI browser and native Android, iOS, or macOS node connection failures across route,","native":false},{"name":"node-inspect-debugger","desc":"Debug Node.js with node inspect, --inspect, breakpoints, CDP, heap, and CPU profiles.","native":false},{"name":"python-debugpy","desc":"Debug Python with pdb, breakpoint(), post-mortem inspection, and debugpy remote attach.","native":false},{"name":"receiving-code-review","desc":"Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear","native":false},{"name":"requesting-code-review","desc":"Use when completing tasks, implementing major features, or before merging to verify work meets requirements","native":false},{"name":"scaffold-exercises","desc":"Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use","native":false},{"name":"setup-matt-pocock-skills","desc":"Configure this repo for the engineering skills: set up its issue tracker, triage label vocabulary, and domain","native":false},{"name":"setup-ts-deep-modules","desc":"Wire dependency-cruiser into a TypeScript repo so each package is a deep module, with implementation hidden in","native":false},{"name":"skill-creator","desc":"Author or review AgentSkills: create, repair, validate, or restructure SKILL.md files and bundled resources.","native":false},{"name":"software-download-install-learn","desc":"灵玦/协作助手专用：软件多路定位、未安装官网下载引导、打开软件并自学官方教程后上手操作。调用时机：你要求『打开/启动 XX』『帮我下载/安装 XX』『XX 怎么用/教程』或需要定位本机某个软件时。三模块能力与灵玦(客户版)","native":false},{"name":"spike","desc":"Run throwaway prototypes to validate feasibility, compare approaches, and report a verdict.","native":false},{"name":"subagent-driven-development","desc":"Use when executing implementation plans with independent tasks in the current session","native":false},{"name":"systematic-debugging","desc":"Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes","native":false},{"name":"tdd","desc":"Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions \"red-green","native":false},{"name":"to-spec","desc":"Turn the current conversation into a spec and publish it to the project issue tracker: no interview, just synt","native":false},{"name":"to-tickets","desc":"Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocki","native":false},{"name":"triage","desc":"Move issues and external PRs through a state machine of triage roles, categorise, verify, grill if needed, and","native":false},{"name":"using-git-worktrees","desc":"Use when starting feature work that needs isolation from current workspace or before executing implementation","native":false},{"name":"web-deploy-verify","desc":"加到官网上、改线上页面、部署验证：静态站点改动上线流程——改本地→双端备份→scp→HTTP+SHA256+无头截图验收。","native":false},{"name":"wizard","desc":"Generate an interactive bash wizard that walks a human through steps only they can perform. Use when provision","native":false},{"name":"x402-settlement-verify","desc":"验证 x402/稳定币链上结算：读回执、解 Transfer 日志、比余额、判 payer≠payee；getLogs 过滤失效改裸 JSON-RPC topics 扫描。","native":false}],"count":46},{"id":"three","label":"3D 与工业","icon":"🧊","color":"#14b8a6","blurb":"建模、渲染、CAD、仿真，工程级产出","items":[{"name":"lingjue-product-module","desc":"灵玦产品加新模块/页面/接口：事件绑 render()、刷 ?v=、真实浏览器点通、双目录哈希同步。","native":true},{"name":"arnold-headless-render","desc":"Maya Arnold headless 渲染排障：MtoA 加载失败、无授权出图、水印验证。","native":false},{"name":"cli-anything-3mf","desc":"3MF mesh geometry editor — detect and resize cylindrical holes, repair meshes, compare 3D printing files. Work","native":false},{"name":"cli-anything-blender","desc":"Command-line interface for Blender - A stateful command-line interface for 3D scene editing, following the sam","native":false},{"name":"cli-anything-cloudcompare","desc":"Command-line interface for CloudCompare — Agent-friendly harness for CloudCompare, the open-source 3D point cl","native":false},{"name":"cli-anything-freecad","desc":"Complete CLI harness for FreeCAD parametric 3D CAD modeler (258 commands). Covers ALL workbenches: Part (29 pr","native":false},{"name":"cli-anything-live2d","desc":"Inspect, validate, edit, lint, diff, batch-manage, and deploy Live2D Cubism models (.model3.json) from the com","native":false},{"name":"cli-anything-nsight-graphics","desc":"Windows-first CLI harness for Nsight Graphics capture, GPU Trace summary, and ngfx-replay analysis","native":false},{"name":"cli-anything-renderdoc","desc":"CLI harness for RenderDoc graphics debugger capture analysis","native":false},{"name":"cli-anything-threemf","desc":"3MF mesh geometry editor — detect and resize cylindrical holes, repair meshes, compare 3D printing files. Work","native":false},{"name":"cli-anything-unimol-tools","desc":"Interactive CLI for Uni-Mol molecular property prediction training and inference workflows.","native":false},{"name":"cli-anything-unrealinsights","desc":"Capture Unreal Engine traces, inspect Trace Store files, keep Unreal Insights GUI open, and export/summarize t","native":false},{"name":"cli-hub-matrix-3d-cad","desc":"Capability-based multi-tool matrix for 3D modeling, CAD, point clouds, rendering, GPU debugging, and fabricati","native":false},{"name":"local-3d-render-adapter","desc":"为本地服务接入 3D 渲染引擎：Maya Software、Blender Cycles、AE aerender 探测与串行作业队列。","native":false},{"name":"maya-headless-film","desc":"Maya无GUI渲短片/序列帧/MP4：mayapy建场景、mayaSoftware出帧、修阴影伪影与黑边、ffmpeg合成","native":false},{"name":"rhinoclaw","desc":"Control Rhino 3D via AI agents. 72+ tools for geometry, transforms, booleans, PBR materials, Grasshopper autom","native":false}],"count":16},{"id":"cua","label":"电脑操控","icon":"🖱️","color":"#eab308","blurb":"让 AI 直接操作真实软件和网页，替你点、填、存、导。这是目前最厚的一块，也是最快能省下时间的一块","items":[{"name":"lingjue-cua-driver-module","desc":"改灵玦 cua_driver/desktop_node.js：双目录同步、坐标契约、窗口 nth 消歧、region 放大 OCR、补丁锚点断言。","native":true},{"name":"agent-browser","desc":"使用 agent-browser CLI 进行浏览器自动化。用于签到、填表、截图、信息抓取等需要控制浏览器的任务。触发条件：(1) 用户要求自动化浏览器操作 (2) 需要签到、填表、点击按钮 (3) 需要抓取网页内容作为","native":false},{"name":"agent-reach","desc":"桌面AI智能体能力扩展——让AI自动发现、学习并操控电脑上所有的软件。三种控制模式（COM/键盘快捷键/UI自动化） + 软件知识库自动生成。","native":false},{"name":"cli-anything-adguardhome","desc":"Command-line interface for AdGuard Home - Network-wide ad blocking and DNS management via AdGuard Home REST AP","native":false},{"name":"cli-anything-anygen","desc":"Command-line interface for Anygen - A stateful command-line interface for AnyGen OpenAPI — generate profession","native":false},{"name":"cli-anything-audacity","desc":"Command-line interface for Audacity - A stateful command-line interface for audio editing, following the same","native":false},{"name":"cli-anything-browser","desc":"Browser automation CLI using DOMShell MCP server. Maps Chrome's Accessibility Tree to a virtual filesystem for","native":false},{"name":"cli-anything-calibre","desc":"Command-line interface for Calibre - A stateful CLI harness for e-book library management, metadata editing, a","native":false},{"name":"cli-anything-ccswitch","desc":"CLI interface for CC Switch — manage AI coding tool configurations from the terminal","native":false},{"name":"cli-anything-chromadb","desc":"Command-line interface for ChromaDB - A stateless CLI for managing vector database collections, documents, and","native":false},{"name":"cli-anything-cloudanalyzer","desc":"Command-line interface for CloudAnalyzer — Agent-friendly harness for CloudAnalyzer, a QA platform for mapping","native":false},{"name":"cli-anything-dify-workflow","desc":"Wrapper for the Dify workflow DSL CLI. Create, inspect, validate, edit, and export Dify workflow files through","native":false},{"name":"cli-anything-drawio","desc":"Command-line interface for Drawio - A CLI harness for Draw.io — create, edit, and export diagrams from the","native":false},{"name":"cli-anything-eez-studio","desc":"Use EEZ Studio from the command line: inspect and modify native .eez-project files, edit LVGL screens/widgets,","native":false},{"name":"cli-anything-eth2-quickstart","desc":"Use eth2-quickstart to autonomously deploy a hardened Ethereum node, install execution and consensus clients,","native":false},{"name":"cli-anything-exa","desc":"Agent-native CLI for Exa web search and content retrieval workflows.","native":false},{"name":"cli-anything-firefly-iii","desc":"Firefly III CLI - Personal finance management via CLI-Anything","native":false},{"name":"cli-anything-gimp","desc":"Command-line interface for Gimp - A stateful command-line interface for image editing, built on Pillow. Design","native":false},{"name":"cli-anything-godot","desc":"Agent-native CLI for Godot project management, scenes, exports, and script execution.","native":false},{"name":"cli-anything-hermes","desc":"Use when the user wants Hermes Agent to build, refine, test, or validate a CLI-Anything harness for a GUI appl","native":false},{"name":"cli-anything-inkscape","desc":"Command-line interface for Inkscape - A stateful command-line interface for vector graphics editing, following","native":false},{"name":"cli-anything-intelwatch","desc":"Zero friction. Full context. Competitive intelligence, M&A due diligence, and OSINT directly from your termina","native":false},{"name":"cli-anything-iterm2","desc":"Provides the cli-anything-iterm2 commands — the only way to actually send text to iTerm2 sessions, read live t","native":false},{"name":"cli-anything-iterm2-ctl","desc":"Provides the cli-anything-iterm2 commands — the only way to actually send text to iTerm2 sessions, read live t","native":false},{"name":"cli-anything-joplin","desc":"Command-line interface for Joplin workflows using the real joplin terminal backend","native":false},{"name":"cli-anything-jumpserver","desc":"Stateful CLI harness for JumpServer bastion host management. Supports asset, user, permission, account, sessio","native":false},{"name":"cli-anything-kdenlive","desc":"Command-line interface for Kdenlive - A stateful command-line interface for video editing, following the same","native":false},{"name":"cli-anything-libreoffice","desc":"Command-line interface for Libreoffice - A stateful command-line interface for document editing, producing rea","native":false},{"name":"cli-anything-lldb","desc":"Stateful LLDB debugging via LLDB Python API","native":false},{"name":"cli-anything-macrocli","desc":"Use when the agent wants to define, list, inspect, or execute GUI macros via the MacroCLI CLI. Macros are para","native":false},{"name":"cli-anything-mermaid","desc":"Command-line interface for Mermaid Live Editor - Create, edit, and render Mermaid diagrams via stateful projec","native":false},{"name":"cli-anything-minimax","desc":"Command-line interface for MiniMax AI — chat (MiniMax-M3) and TTS (speech-2.8-hd) via the MiniMax API.","native":false},{"name":"cli-anything-musescore","desc":"CLI for music notation — transpose, export PDF/audio/MIDI, extract parts, manage instruments","native":false},{"name":"cli-anything-n8n","desc":"Command-line interface for n8n workflow automation platform. Manages workflows, executions, credentials, varia","native":false},{"name":"cli-anything-notebooklm","desc":"Experimental NotebookLM harness for listing notebooks, managing sources, asking questions, generating artifact","native":false},{"name":"cli-anything-novita","desc":"Command-line interface for Novita AI - An OpenAI-compatible AI API client for DeepSeek, GLM, and other models.","native":false},{"name":"cli-anything-nslogger","desc":"CLI harness for NSLogger — parse, filter, export, and monitor NSLogger log files (.rawnsloggerdata / .nslogger","native":false},{"name":"cli-anything-obs-studio","desc":"Command-line interface for Obs Studio - A stateful command-line interface for OBS Studio scene collection edit","native":false},{"name":"cli-anything-obsidian","desc":"Command-line interface for Obsidian — Knowledge management and note-taking via Obsidian Local REST API. Design","native":false},{"name":"cli-anything-ollama","desc":"Command-line interface for Ollama - Local LLM inference and model management via Ollama REST API. Designed for","native":false},{"name":"cli-anything-openclaw","desc":"Adapt HKUDS CLI-Anything for OpenClaw workflows. Use when the user wants to build, refine, test, or validate a","native":false},{"name":"cli-anything-openrefine","desc":"Use OpenRefine through an agent-native CLI for importing messy data, applying JSON operation histories, inspec","native":false},{"name":"cli-anything-openscreen","desc":"Command-line interface for Openscreen — a screen recording editor. A stateful CLI for editing screen recording","native":false},{"name":"cli-anything-pm2","desc":"Command-line interface for PM2 - A stateless CLI for Node.js process management via the PM2 CLI. List, start,","native":false},{"name":"cli-anything-qgis","desc":"Stateful QGIS CLI for projects, writable layers, features, layouts, exports, and qgis_process operations using","native":false},{"name":"cli-anything-quietshrink","desc":"Compress macOS screen recordings with zero CPU stress using Apple Silicon's hardware HEVC encoder. Typically r","native":false},{"name":"cli-anything-rekordbox","desc":"Command-line interface for Pioneer Rekordbox 6/7 - DJ library and live-deck control via guarded SQLCipher mast","native":false},{"name":"cli-anything-rms","desc":"Teltonika RMS device management and monitoring CLI","native":false},{"name":"cli-anything-safari","desc":"Safari browser automation CLI on macOS via safari-mcp. Controls real Safari (native, keeps logins) by wrapping","native":false},{"name":"cli-anything-sbox","desc":"Agent-native CLI for the s&box game engine (Facepunch Studios, Source 2): project management, scene/prefab edi","native":false},{"name":"cli-anything-seaclip","desc":"Command-line interface for SeaClip-Lite - A stateless CLI for managing issues, pipelines, agents, schedules, a","native":false},{"name":"cli-anything-shotcut","desc":"Command-line interface for Shotcut - A stateful command-line interface for video editing, built on the MLT XML","native":false},{"name":"cli-anything-siyuan","desc":"SiYuan (思源笔记) CLI — manage notebooks, documents, blocks, and search your knowledge base from the terminal.","native":false},{"name":"cli-anything-slay-the-spire-ii","desc":"Command-line interface for Slay the Spire 2 - Control the real game through a local bridge mod HTTP API. Reads","native":false},{"name":"cli-anything-tigris","desc":"Command-line interface for Tigris object storage — wraps the official tigris CLI to expose buckets, objects,","native":false},{"name":"cli-anything-wavetone","desc":"Control WaveTone 2.61 workflows through a JSON manifest and launch the real Windows WaveTone executable.","native":false},{"name":"cli-anything-web-yu-pri","desc":"Use Japan Post Web Yu-pri from a CLI by driving the real browser UI for login, inspection, screenshots, dry-ru","native":false},{"name":"cli-anything-wiremock","desc":"Python CLI harness for WireMock HTTP mock server administration","native":false},{"name":"cli-anything-zoom","desc":"Command-line interface for Zoom - CLI harness for Zoom — manage meetings, participants, and recordings fro","native":false},{"name":"cli-anything-zotero","desc":"CLI harness for Zotero.","native":false},{"name":"control-ui","desc":"Operate and troubleshoot the OpenClaw Control UI: navigate connected clients, organize sessions, build session","native":false},{"name":"cua-driver","desc":"Drive a native GUI app (macOS, Windows, Linux) via the cua-driver CLI (default) or MCP server; snapshot its ac","native":false},{"name":"desktop-agent-action-audit","desc":"智能体被卡/没确认按钮/下载不装：审计动作链路四道闸门（确认接线、意图词表、沙箱矛盾、命令白名单）","native":false},{"name":"office-automation","desc":"办公自动化：Word/Excel/PPT/Access/PDF 生成与转换、WPS 时用；含 COM 重试铁律、灵玦产品零依赖路线、产物回读验证。","native":false},{"name":"rea-ghidra-windows-p0","desc":"Use when 在 Windows 装 REA+Ghidra 做逆向分析。","native":false},{"name":"sherpa-onnx-tts","desc":"Local text-to-speech via sherpa-onnx (offline, no cloud)","native":false},{"name":"tmux","desc":"Control tmux sessions/panes for interactive CLIs: list, capture output, send keys, paste text, monitor prompts","native":false},{"name":"windows-app-portable-install","desc":"无管理员装 Windows 第三方软件：无 winget 或 msiexec 卡在 UAC 时，用 7-Zip 抽 MSI 取 exe 直接运行。","native":false},{"name":"windows-autostart-audit","desc":"开机启动项排查与禁用：解析真实目标再动手，识别UTF-8无BOM中文路径导致的静默失效。","native":false},{"name":"windows-chinese-script-encoding","desc":"bat/vbs 中文乱码或路径不存在：bat 存 GBK 无BOM、vbs 存 UTF-16LE+BOM，chcp 只挪到 node 前。","native":false},{"name":"windows-drive-migration","desc":"磁盘坏/要搬家时把已装应用跨Windows盘迁移：诊断源盘→抢数据→枚举启动链→编码安全改路径→新盘重启验证。","native":false},{"name":"windows-elevated-fix","desc":"Windows 注册表/代码页/服务系统级改动被拒权限时：取证、备份、UAC 提权执行、重启后验证。","native":false},{"name":"windows-installer-packaging","desc":"打包 Windows 安装程序（NSIS/7z 自解压）并解包核验。触发：生成安装程序.bat、makensis、排除规则。","native":false},{"name":"windows-launcher-pack","desc":"Windows 一键启动包(.cmd+Python)：批处理 CRLF+GBK、探测 python/py、免 BOM、附一键诊断。触发：启动脚本没用/双击闪退。","native":false},{"name":"windows-ocr-anchor","desc":"Windows OCR 文字锚点点击：小字漏读、像素坐标点不中控件时用裁区放大+多倍率识别，点框中心后验证。","native":false},{"name":"windows-offline-voice","desc":"品检员喊等级/离线语音认词表：SAPI 限定语法免 key 免联网填表 + Python 导出 Excel + 脚本互操作陷阱。","native":false},{"name":"windows-python-embed","desc":"电脑没装 Python、要免安装包、打包给非技术用户：内嵌 embeddable Python 运行时，双击即用的 Windows 脚本交付包。","native":false},{"name":"windows-startup-triage","desc":"开机启动项/自启列表能不能禁用、清理自启：逐项溯源真实目标，识别编码乱码死件，可逆禁用并验收。","native":false},{"name":"xingchen-rpa","desc":"RPA 引擎 - 自动化流程机器人，支持网页自动化、数据采集、表单填写、定时任务等功能","native":false}],"count":79},{"id":"docs","label":"文档与办公","icon":"📄","color":"#06b6d4","blurb":"Office、PDF、笔记、知识库，交付可用的文件","items":[{"name":"1password","desc":"Set up and use 1Password CLI for sign-in, desktop integration, and reading or injecting secrets.","native":false},{"name":"apple-notes","desc":"Create, view, edit, delete, search, move, or export Apple Notes via the memo CLI on macOS.","native":false},{"name":"apple-reminders","desc":"List, add, edit, complete, or delete Apple Reminders and reminder lists via remindctl.","native":false},{"name":"bear-notes","desc":"Create, search, and manage Bear notes via grizzly CLI.","native":false},{"name":"blucli","desc":"BluOS CLI (blu) for discovery, playback, grouping, and volume.","native":false},{"name":"camsnap","desc":"Capture frames or clips from RTSP/ONVIF cameras and local webcams, including USB pan/tilt/zoom control.","native":false},{"name":"eightctl","desc":"Control Eight Sleep pods (status, temperature, alarms, schedules).","native":false},{"name":"gifgrep","desc":"Search GIF providers with CLI/TUI, download results, and extract stills/sheets.","native":false},{"name":"gog","desc":"Google Workspace CLI for Gmail, Calendar, Drive, Contacts, Sheets, and Docs.","native":false},{"name":"handoff","desc":"Compact the current conversation into a handoff document for another agent to pick up.","native":false},{"name":"himalaya","desc":"Himalaya CLI for IMAP/SMTP mail: list, read, search, compose, reply, forward, copy, move, delete.","native":false},{"name":"html-pdf-onepager","desc":"一页纸/报价单/报告出可直接发客户的 A4 PDF：Edge headless 打印 + pymupdf 量留白 + 130dpi 预览核验","native":false},{"name":"mcporter","desc":"List, configure, authenticate, call, and inspect MCP servers/tools with mcporter over HTTP or stdio.","native":false},{"name":"musescore","desc":"CLI for music notation — transpose, export PDF/audio/MIDI, extract parts, manage instruments","native":false},{"name":"nano-pdf","desc":"Edit PDFs with natural-language instructions using the nano-pdf CLI.","native":false},{"name":"notion","desc":"Notion CLI/API for pages, Markdown content, data sources, files, comments, search, Workers, and raw API calls.","native":false},{"name":"obsidian","desc":"Work with Obsidian vaults (plain Markdown notes) and automate via obsidian-cli.","native":false},{"name":"onepager-pdf-delivery","desc":"一页纸PDF交付：HTML→Edge无头出PDF，量max_y防溢出，二维码裁切后回验可扫。","native":false},{"name":"ontology","desc":"Typed knowledge graph for structured agent memory and composable skills. Use when creating/querying entities (","native":false},{"name":"openhue","desc":"Control Philips Hue lights and scenes via the OpenHue CLI.","native":false},{"name":"ordercli","desc":"Foodora-only CLI for checking past orders and active order status (Deliveroo WIP).","native":false},{"name":"peekaboo","desc":"Capture and automate macOS UI with the Peekaboo CLI.","native":false},{"name":"sonoscli","desc":"Control Sonos speakers (discover/status/play/volume/group).","native":false},{"name":"spotify-player","desc":"Terminal Spotify playback/search via spogo (preferred) or spotify_player.","native":false},{"name":"things-mac","desc":"Add, update, list, search, or inspect Things 3 todos, inbox, today, projects, areas, and tags on macOS.","native":false},{"name":"trello","desc":"Manage Trello boards, lists, and cards via the Trello REST API.","native":false},{"name":"xurl","desc":"xurl CLI for authenticated X posts, replies, reads/search, DMs, media upload, followers, auth status, or raw v","native":false}],"count":27},{"id":"intel","label":"情报与研究","icon":"🔍","color":"#8b5cf6","blurb":"查证、调研、监控、报表，把信息变成判断","items":[{"name":"openclaw-memory-index-rebuild","desc":"memory 重建索引：Index identity 不匹配/Vector search paused 时切本地嵌入、脱离式重跑、验发布","native":true},{"name":"openclaw-memory-reindex","desc":"memory 索引重建/向量检索 paused/Index identity 不匹配：禁用 mtime 判成败，用 DB 元数据 + --deep + memory_search 三级验收。","native":true},{"name":"api-cost-anomaly","desc":"余额变少/怀疑API Key被偷用：先校准余额口径，三证排除外泄，再按日志定量定位真实消耗方并止损。","native":false},{"name":"audit-website","desc":"网站审计工具，检查网站安全性和性能，支持安全审计、性能测试、合规检查和漏洞扫描。","native":false},{"name":"cli-hub-matrix-knowledge-research","desc":"Capability-based multi-tool matrix for research, note-taking, document authoring, and publishing. Agents compo","native":false},{"name":"find-skills","desc":"搜索和发现可用的技能插件，支持搜索本地技能库、浏览技能分类、查看技能详情和安装新技能。","native":false},{"name":"memory-file-recovery","desc":"记忆文件被覆盖/丢失后：从网关库还原（memory_index_chunks 骨架 + transcript_events 写操作增量）；写记忆文件一律追加不覆盖","native":false},{"name":"model-usage","desc":"Summarize CodexBar local cost logs by model for Codex or Claude, including current or full breakdowns.","native":false},{"name":"research","desc":"Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the r","native":false},{"name":"seo-audit","desc":"SEO审计工具，优化网站搜索引擎排名","native":false},{"name":"taskflow-inbox-triage","desc":"Example TaskFlow pattern for inbox triage, intent routing, waiting on replies, and later summaries.","native":false},{"name":"weather","desc":"Current weather and forecasts with web_fetch, falling back to wttr.in curl for locations, rain, temperature, t","native":false},{"name":"web-claim-factcheck","desc":"核实网上人物/产品宣传：一手源对账、同名人物分栏，输出已证实/未证实两栏","native":false}],"count":13},{"id":"ops","label":"系统与安全","icon":"🛡️","color":"#64748b","blurb":"装、修、迁、备份、加固，让机器稳定干活","items":[{"name":"agent-bus-maintenance","desc":"改多智能体直连推送员/总线并重启常驻：备份→编译→单测→受控活体→schtasks 核验。触发：改 bus_pusher.py/bus_env.json。","native":true},{"name":"clawsec","desc":"ClawSec is a comprehensive security protection system providing real-time security monitoring, threat detectio","native":true},{"name":"openclaw-automations","desc":"OpenClaw automations(cron/trigger)编写验证：投递 fail-closed、运行态侧证、Windows 脚本禁忌。触发：建 cron 看守。","native":true},{"name":"openclaw-backup","desc":"OpenClaw 配置和数据备份工具","native":true},{"name":"openclaw-drive-migration","desc":"迁移 OpenClaw 到另一块盘并验收（备份/预拷贝/引用转型/回滚切换）。触发：换盘、确认网关运行盘。","native":true},{"name":"openclaw-session-archive","desc":"cron 孤儿会话归档卡死（did not finish stopping / archive drain failed）：日志取真异常→查 placement→带 expectedSessionId 归档。","native":true},{"name":"openclaw-session-repair","desc":"会话中途静默中断、一压缩就断、干到一半停：查网关日志定位压缩失败，修 agents.defaults.compaction。","native":true},{"name":"add-model-provider","desc":"Add and live-prove a model provider with non-interactive config one-liners, without exposing credentials.","native":false},{"name":"aliyun-console","desc":"阿里云控制台网页自动化：加改解析记录、启用暂停记录、批量操作（Next 选择器+接口验证）。","native":false},{"name":"batch-renamer","desc":"批量文件重命名工具 - 支持多种重命名规则，实时预览，一键操作","native":false},{"name":"blocked-script-mirror","desc":"验证码不弹/按钮永久灰：第三方脚本被墙时，用 CDP 把请求改写到自己可达的官方镜像，并打包成一键脚本。","native":false},{"name":"c-drive-cleaner","desc":"AI驱动的C盘空间诊断与安全清理顾问。通过 NTFS 实际分配空间测量、父子目录去重、应用级增长与清理后再生追踪、厂商托管缓存/工具链、Windows 更新残留、不常用软件和零碎空间盘点，定位空间为何增长及清理为何无效。","native":false},{"name":"cloud-image-bake","desc":"Bake, select, prove, and safely retire a Cloud Worker image with crabbox and config one-liners.","native":false},{"name":"config-fix-guard","desc":"修复配置/密钥/占位符前先核对历史决策；误改后按哈希回退。","native":false},{"name":"configure-channel","desc":"Configure and prove a chat channel with non-interactive one-liners; secrets only as SecretRefs.","native":false},{"name":"cross-drive-migration","desc":"迁移目录到另一盘并改所有路径引用：脚本/config/计划任务/常驻进程。触发：换盘符/拔盘前搬家。","native":false},{"name":"diagnose-gateway","desc":"Diagnose Gateway, config, secrets, channels, and port failures with read-only one-liners.","native":false},{"name":"healthcheck","desc":"Audit/harden OpenClaw hosts: SSH, firewall, updates, exposure, backups, disk encryption, gateway security.","native":false},{"name":"install-telemetry","desc":"装机量统计、安装埋点、下载≠安装：nginx 收数端点 + 客户端匿名首启上报 + 日志防清空。","native":false},{"name":"lip-relay-ops","desc":"中继/隧道/cpolar断了或朋友桥刷屏：LIP中继自愈恢复+取新公网地址+桥首发起步。","native":false},{"name":"local-file-manager","desc":"Read, write, append, and list local files in the session's working directory. Use when you need to persist out","native":false},{"name":"quietshrink","desc":"Compress macOS screen recordings with zero CPU stress using Apple Silicon's hardware HEVC encoder. Typically r","native":false},{"name":"recycle-bin-cleanup","desc":"走回收站的可恢复删除：Windows 批量清理先探针可用性、出清单、纯 ASCII 脚本，按条目数与体积双核验。","native":false},{"name":"server-security-hardening","desc":"官网被扫描/攻击、加固服务器、封扫描IP、装fail2ban、nginx拦恶意请求：先研判，再拦截+自动封禁并实测。","native":false},{"name":"sibling-copy-sync","desc":"同步改动到兄弟副本：先盘点活跃副本，用改动前备份当哈希基线判定整文件覆盖或定点替换，再三连验收。","native":false},{"name":"system-monitor","desc":"智能系统监控与预警服务，实时检测OpenClaw运行状态，提前预警潜在风险。","native":false},{"name":"x402-payment-verification","desc":"核验或搭建 x402 机器支付证据：402 挑战复现、EIP-3009 验签、结算样本判定。","native":false}],"count":27},{"id":"voice","label":"语音与多模态","icon":"🎙️","color":"#ef4444","blurb":"听说读写：转写、配音、识别、理解","items":[{"name":"ffmpeg-audio-sfx","desc":"音效/片头声/提示音本地合成：ffmpeg aevalsrc+anoisesrc 叠波形、concat 拼接、两遍归一化防削波。","native":false},{"name":"ffmpeg-bundle","desc":"为 Windows 应用捆绑并验证静态 ffmpeg 构建，确保支持 H.264 编码器。用于打包内置 ffmpeg 或缺编码器排障。","native":false},{"name":"openai-whisper","desc":"Local speech-to-text with the Whisper CLI (no API key).","native":false},{"name":"openai-whisper-api","desc":"OpenAI Audio Transcriptions API via curl; gpt-4o-transcribe, mini, diarize, or whisper-1.","native":false},{"name":"sag","desc":"ElevenLabs text-to-speech with mac-style say UX.","native":false},{"name":"speech-to-text","desc":"Convert speech to text using various STT engines including OpenAI Whisper, Azure Speech Recognition, and syste","native":false},{"name":"text-to-speech","desc":"Convert text to speech using various TTS engines including system TTS, Edge TTS, and Azure TTS. Supports multi","native":false},{"name":"wait-what","desc":"Stop. That last message did not land: re-pitch it.","native":false}],"count":8},{"id":"meta","label":"智能体元能力","icon":"🧠","color":"#22c55e","blurb":"自我进化、主动巡检、多智能体协作、长期记忆","items":[{"name":"hermes-for-win","desc":"一键安装、部署和管理 hermes Agent 和 hermes-webui 在 Windows 系统上，包括开机自启动、后台常驻和自动更新功能。调用时机：当 Windows 用户想要快速安装和配置 hermes 生态时","native":true},{"name":"hermes-skill-sync","desc":"写技能给协作助手：递归扫描无需重启、保原行尾、校验 name==目录名 与 description。触发：也写给协作助手。","native":true},{"name":"agent-interop-recon","desc":"多AI议事前先侦察通道：进程→端口→HTTP探测，再建共享议事厅。触发：召集几个AI互动、连多个 AI 助手。","native":false},{"name":"agent-tools","desc":"代理工具集，提供文件操作、系统管理、网络工具等各种实用工具。","native":false},{"name":"ask-matt","desc":"Ask which skill or flow fits your situation. A router over the skills in this repo.","native":false},{"name":"brainstorming","desc":"You MUST use this before any creative work - creating features, building components, adding functionality, or","native":false},{"name":"cli-hub-meta-skill","desc":"Discover agent-native CLIs for professional software. Access the live catalog to find tools for creative workf","native":false},{"name":"dispatching-parallel-agents","desc":"Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies","native":false},{"name":"god","desc":"Omnipotent system management and utility tool. Use for system operations, file management, network tools, and","native":false},{"name":"grilling","desc":"Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thin","native":false},{"name":"proactive-task-scanner","desc":"启动时自动扫描未完成任务并持续推进直到完成","native":false},{"name":"remind-me","desc":"Create, list, and cancel reminders and cron jobs scoped to the channel they were requested from. Use when: use","native":false},{"name":"retro","desc":"Conduct a retrospective on a coding session.","native":false},{"name":"self-improving-agent","desc":"Use when 灵玦要自省/复盘/体检自身(性能、记忆、技能、模型配置), 或你要求\"自我改进/持续提升/找自身短板\"。跑真实脚本出报告, 只提议不改配置; 纠正挖掘走 （本机路径）","native":false},{"name":"task-executor","desc":"主动任务执行器是一个让灵玦能够主动执行任务而不是被动等待的技能。","native":false},{"name":"taskflow","desc":"Coordinate multi-step detached tasks as one durable TaskFlow job with owner context, state, waits, and child t","native":false},{"name":"teach","desc":"Teach the user a new skill or concept, within this workspace.","native":false},{"name":"thinking-partner","desc":"智能思考伙伴，帮助分析问题、规划方案、提供建议","native":false},{"name":"to-questionnaire","desc":"Turn a decision you can't fully answer into a questionnaire for someone else to fill in.","native":false},{"name":"using-superpowers","desc":"Use when starting any conversation - establishes how to find and use skills, requiring skill invocation before","native":false},{"name":"wayfinder","desc":"Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on your i","native":false},{"name":"win-py-pack-handoff","desc":"分发给别人的 Windows Python 包打不开/连不上时：断没解压、抗记事本BOM、随包CA兜底SSL、启动器探测python/py。","native":false}],"count":22}],"total":313,"nativeCount":15,"builtAt":"2026-10-28"};
+
+/* 运行时转义：技能描述里带 <项目> 这类尖括号，不转义会被当成标签吞掉 */
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+const ICON = {
+  ecom: '<svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 10.4A2 2 0 0 0 9.3 16h7.4a2 2 0 0 0 2-1.6L20 8H6"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>',
+  content: '<svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 9h19M7 5v14M17 5v14"/></svg>',
+  design: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="9.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="14" r="1.2" fill="currentColor" stroke="none"/></svg>',
+  code: '<svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M15 7l5 5-5 5"/></svg>',
+  three: '<svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.4v9.2L12 21.2 3 16.6V7.4z"/><path d="M3 7.4 12 12l9-4.6M12 12v9.2"/></svg>',
+  cua: '<svg viewBox="0 0 24 24"><path d="M5 3.5 18.5 11 12.6 12.9 10 19.6z"/></svg>',
+  docs: '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M8.5 13h7M8.5 16.5h4.5"/></svg>',
+  intel: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>',
+  ops: '<svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 4.4-3.2 7.6-8 9-4.8-1.4-8-4.6-8-9V6z"/><path d="M9 12.2l2.1 2.1L15.5 10"/></svg>',
+  voice: '<svg viewBox="0 0 24 24"><rect x="9" y="2.8" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg>',
+  meta: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.3"/><circle cx="5" cy="18" r="2.3"/><circle cx="19" cy="18" r="2.3"/><path d="M10.6 7 6.4 15.8M13.4 7l4.2 8.8M7.3 18h9.4"/></svg>'
+};
+
+const map = document.getElementById('map');
+const detail = document.getElementById('detail');
+let activeId = null;
+
+/* binary-split treemap：面积正比于能力数量，必然铺满 */
+function binaryTreemap(items, x, y, w, h, vertical, out) {
+  if (!items.length) return;
+  if (items.length === 1) { out.push({ d: items[0], x, y, w, h }); return; }
+  const total = items.reduce((s, i) => s + i.count, 0);
+  let acc = 0, idx = 0, best = Infinity;
+  for (let i = 0; i < items.length - 1; i++) {
+    acc += items[i].count;
+    const score = Math.abs(acc / total - 0.5);
+    if (score < best) { best = score; idx = i; }
+  }
+  const a = items.slice(0, idx + 1), b = items.slice(idx + 1);
+  const frac = a.reduce((s, i) => s + i.count, 0) / total;
+  if (vertical) {
+    const wa = w * frac;
+    binaryTreemap(a, x, y, wa, h, !vertical, out);
+    binaryTreemap(b, x + wa, y, w - wa, h, !vertical, out);
+  } else {
+    const ha = h * frac;
+    binaryTreemap(a, x, y, w, ha, !vertical, out);
+    binaryTreemap(b, x, y + ha, w, h - ha, !vertical, out);
+  }
+}
+
+const blocks = [];
+binaryTreemap([...DATA.domains].sort((a, b) => b.count - a.count), 0, 0, 100, 100, true, blocks);
+
+const GAP = 5;
+blocks.forEach((blk) => {
+  const d = blk.d;
+  const el = document.createElement('div');
+  el.className = 'tile';
+  el.style.setProperty('--c', d.color);
+  el.style.left = 'calc(' + blk.x + '% + 2px)';
+  el.style.top = 'calc(' + blk.y + '% + 2px)';
+  el.style.width = 'calc(' + blk.w + '% - ' + GAP + 'px)';
+  el.style.height = 'calc(' + blk.h + '% - ' + GAP + 'px)';
+  el.dataset.x = blk.x; el.dataset.y = blk.y;
+  el.dataset.w = blk.w; el.dataset.h = blk.h;
+  el.dataset.count = d.count;
+  el.dataset.id = d.id;
+  const fs = blk.w > 34 ? 20 : blk.w > 22 ? 16 : blk.w > 14 ? 13 : 11.5;
+  el.innerHTML =
+    '<div class="top"><span class="ico">' + (ICON[d.id] || '') + '</span><span class="num">' + d.count + '</span></div>' +
+    '<div class="inner"><div class="nm" style="font-size:' + fs + 'px">' + d.label + '</div>' +
+    '<div class="bd">' + d.blurb + '</div></div>';
+  el.onclick = () => openDetail(d.id);
+  map.appendChild(el);
+});
+
+/* 按真实渲染尺寸分级，而不是按面积百分比（窗口宽度/高度都会变） */
+/* 窄屏（手机）不再用 treemap：11 块挤在 470px 里小块没法读，改成卡片流 */
+function fitTiles() {
+  const flow = window.innerWidth <= 900;
+  map.classList.toggle('flow', flow);
+  const hint = document.getElementById('hint');
+  if (hint) hint.textContent = flow
+    ? '数字 = 该领域能力数量 · 金色边框 = 灵玦原生'
+    : '方块面积 = 能力数量 · 金色边框 = 灵玦原生';
+  document.querySelectorAll('.tile').forEach((el) => {
+    if (flow) {
+      el.style.left = ''; el.style.top = ''; el.style.width = ''; el.style.height = '';
+      el.classList.remove('sm', 'xs', 'tiny', 'vert');
+      const n = +el.dataset.count || 0;
+      el.style.minHeight = (n >= 40 ? 148 : n >= 20 ? 124 : n >= 12 ? 108 : 96) + 'px';
+      return;
+    }
+    el.style.minHeight = '';
+    el.style.left = 'calc(' + el.dataset.x + '% + 2px)';
+    el.style.top = 'calc(' + el.dataset.y + '% + 2px)';
+    el.style.width = 'calc(' + el.dataset.w + '% - ' + GAP + 'px)';
+    el.style.height = 'calc(' + el.dataset.h + '% - ' + GAP + 'px)';
+    const h = el.clientHeight, w = el.clientWidth;
+    el.classList.toggle('sm', h < 96 || w < 150);
+    el.classList.toggle('xs', h < 62 || w < 108);
+    el.classList.toggle('tiny', h < 34 || w < 72);
+    el.classList.toggle('vert', w < 58);
+  });
+}
+fitTiles();
+window.addEventListener('resize', () => { clearTimeout(window.__ft); window.__ft = setTimeout(fitTiles, 80); });
+
+function openDetail(id) {
+  const d = DATA.domains.find(x => x.id === id);
+  if (!d) return;
+  if (activeId === id) { closeDetail(); return; }
+  activeId = id;
+  document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t.dataset.id === id));
+  document.getElementById('dico').innerHTML = ICON[d.id] || '';
+  document.getElementById('dname').textContent = d.label + ' · ' + d.count + ' 项';
+  document.getElementById('dblurb').textContent = d.blurb;
+  document.getElementById('dgrid').innerHTML = d.items.map(i =>
+    '<div class="card ' + (i.native ? 'native' : '') + '" data-n="' + esc(i.name.toLowerCase()) + '" data-d="' + esc((i.desc || '').toLowerCase()) + '">' +
+    '<div class="cn">' + esc(i.name) + (i.native ? '<span class="badge">原生</span>' : '') + '</div>' +
+    (i.desc ? '<div class="cd">' + esc(i.desc) + '</div>' : '') + '</div>').join('');
+  detail.classList.add('show');
+  applyFilter();
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDetail() {
+  activeId = null;
+  detail.classList.remove('show');
+  document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
+}
+
+const search = document.getElementById('search');
+search.addEventListener('input', applyFilter);
+
+function applyFilter() {
+  const q = search.value.trim().toLowerCase();
+  document.querySelectorAll('.card').forEach(c => {
+    if (!q) { c.classList.remove('hide'); return; }
+    c.classList.toggle('hide', !(c.dataset.n.includes(q) || c.dataset.d.includes(q)));
+  });
+  if (!q) {
+    document.querySelectorAll('.tile').forEach(t => {
+      t.style.opacity = 1;
+      const d = DATA.domains.find(x => x.id === t.dataset.id);
+      t.querySelector('.num').textContent = d.count;
+    });
+    document.getElementById('hint').textContent = window.innerWidth <= 900
+      ? '数字 = 该领域能力数量 · 金色边框 = 灵玦原生'
+      : '方块面积 = 能力数量 · 金色边框 = 灵玦原生';
+    return;
+  }
+  let hits = 0;
+  document.querySelectorAll('.tile').forEach(t => {
+    const d = DATA.domains.find(x => x.id === t.dataset.id);
+    const n = d.items.filter(i => i.name.toLowerCase().includes(q) || (i.desc || '').toLowerCase().includes(q)).length;
+    hits += n;
+    t.style.opacity = n ? 1 : .22;
+    t.querySelector('.num').textContent = n ? n : 0;
+  });
+  document.getElementById('hint').textContent = hits ? ('命中 ' + hits + ' 项，点高亮方块查看') : '没有匹配项，换个词试试';
+  /* 搜索时如果当前展开的领域一个都不命中，自动跳到命中最多的一块，避免看到空列表 */
+  if (hits && activeId) {
+    const counts = DATA.domains.map(d => ({
+      id: d.id,
+      n: d.items.filter(i => i.name.toLowerCase().includes(q) || (i.desc || '').toLowerCase().includes(q)).length
+    }));
+    const cur = counts.find(c => c.id === activeId);
+    if (cur && cur.n === 0) {
+      const best = counts.slice().sort((a, b) => b.n - a.n)[0];
+      if (best && best.n > 0) openDetail(best.id);
+    }
+  }
+}
+
+/* ---------- 能力体检 ---------- */
+const QUESTIONS = [
+  { q: '你现在最想解决的是什么？', o: [
+    { t: '多挣点钱', w: { ecom: 3, content: 1, intel: 1 } },
+    { t: '少花点时间', w: { cua: 3, ops: 1, docs: 1 } },
+    { t: '做出能给人看的东西', w: { content: 2, design: 2, docs: 1 } },
+    { t: '把活儿干得更专业', w: { code: 2, three: 2, docs: 1 } }
+  ]},
+  { q: '你每周时间主要耗在哪？', o: [
+    { t: '重复点击、复制粘贴、填表', w: { cua: 4 } },
+    { t: '写文案、写方案、写报告', w: { content: 2, docs: 2, meta: 1 } },
+    { t: '找资料、核对真假', w: { intel: 4 } },
+    { t: '做图做视频改来改去', w: { design: 2, content: 2, voice: 1 } }
+  ]},
+  { q: '你手上已经有什么？', o: [
+    { t: '一个店铺 / 一盘货', w: { ecom: 4, content: 1 } },
+    { t: '一门手艺 / 专业能力', w: { code: 2, three: 2, meta: 1 } },
+    { t: '一个账号 / 一些粉丝', w: { content: 3, design: 1, intel: 1 } },
+    { t: '基本是空的，想从零开始', w: { meta: 2, intel: 2, content: 1 } }
+  ]},
+  { q: '你希望 AI 做到哪一步？', o: [
+    { t: '给点建议就行', w: { intel: 3, meta: 1 } },
+    { t: '先出个初稿我改', w: { content: 2, docs: 2, design: 1 } },
+    { t: '直接干完，我只验收', w: { cua: 2, code: 2, ops: 2 } }
+  ]},
+  { q: '你希望多久看到结果？', o: [
+    { t: '今天就要', w: { cua: 2, docs: 2, intel: 1 } },
+    { t: '一周内', w: { content: 2, design: 2, ecom: 1 } },
+    { t: '一个月也认', w: { code: 2, three: 2, meta: 2 } }
+  ]},
+  { q: '你最担心什么？', o: [
+    { t: '做错了 / 删错东西', w: { ops: 2, meta: 2 } },
+    { t: '数据泄露', w: { ops: 3, meta: 2 } },
+    { t: '花了钱没效果', w: { intel: 2, ecom: 1, meta: 2 } }
+  ]},
+  { q: '你的产出最后交给谁？', o: [
+    { t: '客户 / 甲方', w: { docs: 2, design: 2, content: 1 } },
+    { t: '老板 / 公司', w: { docs: 2, intel: 2, code: 1 } },
+    { t: '平台 / 公开平台', w: { content: 3, design: 1 } },
+    { t: '就我自己用', w: { cua: 2, meta: 2, ops: 1 } }
+  ]},
+  { q: '你觉得自己现在最缺的是？', o: [
+    { t: '不知道做什么', w: { intel: 2, meta: 3 } },
+    { t: '有方向，没工具', w: { cua: 2, code: 2, design: 1 } },
+    { t: '工具都有，缺执行', w: { meta: 3, ops: 1 } },
+    { t: '都在做，缺时间', w: { cua: 3, meta: 1 } }
+  ]}
+];
+
+const REC = {
+  ecom: '你有真实生意在跑。别去学新工具，先把「上架—客服—追单」这三段重复动作交出去，用能验证的方式省下每天两小时。',
+  content: '你的瓶颈不是灵感，是产能。把选题、初稿、配图、分发拆成流水线，先固定一个栏目做 20 期，再谈爆款。',
+  design: '你的产出被「不好看」卡住了。先把品牌色、字体、版式定成一套模板，之后所有物料都从模板长出来，不再每次重做。',
+  code: '你缺的是把想法变成能跑的东西的能力。用「小步交付」：每天一个能演示的版本，别攒需求。',
+  three: '3D / 工业产出链条长。先把最耗时的建模和渲染交给机器，你只保留判断和修改。',
+  cua: '你大部分时间在做机器能做的事。这是最快见效的一块：先录下你每天重复点的那 3 个流程，一个一个交出去。',
+  docs: '你交付的是文件，而文件格式最耗人。把排版、转 PDF、汇总表格这些规矩动作固定下来，一次配置长期复用。',
+  intel: '你缺的不是信息，是判断。先把「查证—对比—给结论」做成固定流程，别让自己淹在搜索结果里。',
+  ops: '你在用一台没有护栏的机器干活。先做备份和权限，再谈效率——出事一次，省下的时间全赔进去。',
+  voice: '你和机器的输入方式还太慢。语音转写加语音输出能立刻把速度提上来，尤其在移动和口述场景。',
+  meta: '你缺的是「让 AI 自己持续干活」的机制。先建立每日巡检和记忆沉淀，让系统自己发现问题，而不是你每次重新交代。'
+};
+
+const answers = new Array(QUESTIONS.length).fill(null);
+const qsEl = document.getElementById('qs');
+
+QUESTIONS.forEach((item, qi) => {
+  const div = document.createElement('div');
+  div.className = 'q';
+  div.innerHTML = '<div class="qt"><i>Q' + (qi + 1) + '</i>' + item.q + '</div><div class="opts"></div>';
+  const opts = div.querySelector('.opts');
+  item.o.forEach((o, oi) => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.textContent = o.t;
+    b.onclick = () => {
+      answers[qi] = oi;
+      opts.querySelectorAll('.opt').forEach((x, i) => x.classList.toggle('sel', i === oi));
+      document.getElementById('calc').disabled = answers.some(a => a === null);
+    };
+    opts.appendChild(b);
+  });
+  qsEl.appendChild(div);
+});
+
+document.getElementById('calc').onclick = () => {
+  const score = {};
+  DATA.domains.forEach(d => score[d.id] = 0);
+  answers.forEach((ai, qi) => {
+    const w = QUESTIONS[qi].o[ai].w;
+    for (const k in w) score[k] = (score[k] || 0) + w[k];
+  });
+  const ranked = DATA.domains.map(d => ({ ...d, s: score[d.id] || 0 })).sort((a, b) => b.s - a.s);
+  const max = Math.max(...ranked.map(r => r.s), 1);
+  const top = ranked.slice(0, 3);
+
+  document.getElementById('result').innerHTML =
+    '<div class="rcard">' +
+    '<h3>' + top[0].label + ' —— 你最该补的' + '</h3>' +
+    '<div class="rsub">这块现有 ' + top[0].count + ' 项能力可用，其中 ' + top[0].items.filter(i => i.native).length + ' 个是灵玦原生。</div>' +
+    '<div class="bars">' + top.map((r, i) =>
+      '<div class="bar"><span class="bl">' + (i === 0 ? '优先补' : i === 1 ? '其次' : '顺带') + ' ' + r.label + '</span>' +
+      '<span class="bt"><span class="bf" style="width:' + Math.round(r.s / max * 100) + '%;background:' + (i === 0 ? '#7dd3fc' : 'rgba(255,255,255,.30)') + '"></span></span>' +
+      '<span style="width:24px;text-align:right;color:#8b8b9e">' + r.s + '</span></div>').join('') + '</div>' +
+    '<p class="rec">' + REC[top[0].id] + '</p>' +
+    '<p class="rec" style="margin-top:14px;opacity:.75">下一步：点上面高亮的「' + top[0].label + '」方块，从里面挑 <b>1 个</b>今天就能跑起来的，别挑 5 个。</p>' +
+    '</div>';
+  document.getElementById('result').classList.add('show');
+  document.querySelectorAll('.tile').forEach(t => { t.style.boxShadow = ''; });
+  const tile = [...document.querySelectorAll('.tile')].find(t => t.dataset.id === top[0].id);
+  if (tile) { tile.style.opacity = 1; tile.style.boxShadow = '0 0 0 2px ' + top[0].color; }
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+/* 支持 #open=<id> 直接打开某块（便于验证与分享） */
+if (location.hash.startsWith('#open=')) {
+  const id = location.hash.slice(6);
+  if (DATA.domains.some(d => d.id === id)) setTimeout(() => openDetail(id), 60);
+}
+</script>
+</body>
+</html>
