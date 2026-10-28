@@ -325,10 +325,10 @@ function fitTiles() {
 fitTiles();
 window.addEventListener('resize', () => { clearTimeout(window.__ft); window.__ft = setTimeout(fitTiles, 80); });
 
-function openDetail(id) {
+function openDetail(id, force) {
   const d = DATA.domains.find(x => x.id === id);
   if (!d) return;
-  if (activeId === id) { closeDetail(); return; }
+  if (activeId === id && !force) { closeDetail(); return; }
   activeId = id;
   document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t.dataset.id === id));
   document.getElementById('dico').innerHTML = ICON[d.id] || '';
@@ -352,13 +352,14 @@ function closeDetail() {
 const search = document.getElementById('search');
 search.addEventListener('input', applyFilter);
 
+function hay(i) { return (i.name + ' ' + (i.desc || '')).toLowerCase(); }
+let suppressFilter = false;
+
 function applyFilter() {
+  if (suppressFilter) return;
   const q = search.value.trim().toLowerCase();
-  document.querySelectorAll('.card').forEach(c => {
-    if (!q) { c.classList.remove('hide'); return; }
-    c.classList.toggle('hide', !(c.dataset.n.includes(q) || c.dataset.d.includes(q)));
-  });
   if (!q) {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('hide'));
     document.querySelectorAll('.tile').forEach(t => {
       t.style.opacity = 1;
       const d = DATA.domains.find(x => x.id === t.dataset.id);
@@ -369,27 +370,156 @@ function applyFilter() {
       : '方块面积 = 能力数量 · 金色边框 = 灵玦原生';
     return;
   }
-  let hits = 0;
-  document.querySelectorAll('.tile').forEach(t => {
-    const d = DATA.domains.find(x => x.id === t.dataset.id);
-    const n = d.items.filter(i => i.name.toLowerCase().includes(q) || (i.desc || '').toLowerCase().includes(q)).length;
-    hits += n;
-    t.style.opacity = n ? 1 : .22;
-    t.querySelector('.num').textContent = n ? n : 0;
-  });
-  document.getElementById('hint').textContent = hits ? ('命中 ' + hits + ' 项，点高亮方块查看') : '没有匹配项，换个词试试';
-  /* 搜索时如果当前展开的领域一个都不命中，自动跳到命中最多的一块，避免看到空列表 */
-  if (hits && activeId) {
-    const counts = DATA.domains.map(d => ({
-      id: d.id,
-      n: d.items.filter(i => i.name.toLowerCase().includes(q) || (i.desc || '').toLowerCase().includes(q)).length
-    }));
-    const cur = counts.find(c => c.id === activeId);
-    if (cur && cur.n === 0) {
-      const best = counts.slice().sort((a, b) => b.n - a.n)[0];
-      if (best && best.n > 0) openDetail(best.id);
+
+  /* 先整串精确匹配；一条都不中时，按词拆开再找一次 */
+  let match = i => hay(i).includes(q);
+  let counts = DATA.domains.map(d => ({ id: d.id, n: d.items.filter(match).length, score: d.label.toLowerCase().includes(q) ? 1 : 0 }));
+  let hits = counts.reduce((a, c) => a + c.n, 0);
+  let loose = false;
+
+  if (!hits) {
+    const toks = tokens(q);
+    if (toks.length) {
+      loose = true;
+      match = i => { const h = hay(i); return toks.some(t => h.includes(t)); };
+      /* 按词的罕见程度加权：常见词（如 app）不值钱，罕见词（如 部署）才是真正的信号 */
+      const all = DATA.domains.reduce((a, d) => a.concat(d.items), []);
+      const N = all.length || 313;
+      const w = {};
+      toks.forEach(t => {
+        const df = all.filter(it => hay(it).includes(t)).length;
+        w[t] = Math.log(1 + N / Math.max(1, df));
+      });
+      counts = DATA.domains.map(d => {
+        let n = 0, sum = 0;
+        d.items.forEach(it => {
+          const h = hay(it);
+          let s = 0, m = 0;
+          toks.forEach(t => { if (h.includes(t)) { s += w[t]; m++; } });
+          if (m) { n++; sum += Math.min(s, 6); }
+        });
+        /* 领域名里就有这个词（如搜“语音”命中“语音与多模态”）就给一份加权 */
+        const lb = toks.some(t => d.label.toLowerCase().includes(t)) ? 14 : 0;
+        return { id: d.id, n, score: sum + Math.log(1 + n) * 0.4 + lb };
+      });
+      /* 口语词自带的领域提示，比按词硬猜准得多 */
+      hintDomains(q).forEach(id => {
+        const c = counts.find(x => x.id === id);
+        if (c) c.score += 12;
+      });
+      hits = counts.reduce((a, c) => a + c.n, 0);
     }
   }
+
+  const best = counts.slice().sort((a, b) => (b.score - a.score) || (b.n - a.n))[0];
+
+  document.querySelectorAll('.tile').forEach(t => {
+    const c = counts.find(x => x.id === t.dataset.id);
+    t.style.opacity = c.n ? 1 : .22;
+    t.querySelector('.num').textContent = c.n ? c.n : 0;
+  });
+
+  if (!hits) {
+    /* 整串直接就是一个领域名时（如“语音”“系统”），打开那个领域比报“没找到”有用 */
+    const lm = DATA.domains.find(d => d.label.toLowerCase().includes(q));
+    if (lm) {
+      suppressFilter = true; openDetail(lm.id, true); suppressFilter = false;
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('hide'));
+      document.getElementById('hint').textContent = '「' + lm.label + '」共 ' + lm.count + ' 项';
+      return;
+    }
+    document.querySelectorAll('.card').forEach(c => c.classList.add('hide'));
+    document.getElementById('hint').textContent = '没有匹配项，换个词试试（比如：海报、视频、Excel、备份）';
+    return;
+  }
+
+  /* 自动展开命中最多的领域，但别把已经展开的那块关掉 */
+  const target = (best.n || best.score) ? best.id : null;
+  if (target) { suppressFilter = true; openDetail(target, true); suppressFilter = false; }
+
+  document.querySelectorAll('.card').forEach(c => {
+    c.classList.toggle('hide', best.n ? !match({ name: c.dataset.n, desc: c.dataset.d }) : false);
+  });
+
+  const d = DATA.domains.find(x => x.id === (target || activeId));
+  const cur = target ? (counts.find(c => c.id === target) || {}).n : null;
+  if (target && !best.n) {
+    document.getElementById('hint').textContent = '「' + d.label + '」共 ' + d.count + ' 项，已展开';
+    return;
+  }
+  const scope = d && cur ? '，「' + d.label + '」' + cur + ' 项' : '';
+  document.getElementById('hint').textContent = loose
+    ? '按关键词找到 ' + hits + ' 项' + scope + '，已展开'
+    : '命中 ' + hits + ' 项' + scope + (target ? '，已展开' : '，点高亮方块查看');
+}
+
+/* 把一句话拆成可用于匹配的词：英文单词 + 中文二元词，丢掉常见虚词 */
+const CN_STOP = new Set(['把这','这个','那个','一个','一下','一些','我们','你们','他们','可以','如何','怎么','什么','哪些','需要','想要','帮我','请问','麻烦','直接','然后','以及','就是','还是','然后','因为','所以','如果','但是','而且','已经','正在','进行','通过','关于','对于','这样','那样','现在','时候','东西','事情','问题','地方','方式','一下']);
+/* 口语说法换算成技能描述里真会出现的词，避免“落地页”“小程序”这类词一条都搜不到 */
+/* 第一项=用户会说的词，第二项=技能描述里真会出现的词，第三项=优先打开的领域 */
+const ALIAS = [
+  ['小程序', ['web', 'html', '代码', '页面'], 'code'],
+  ['落地页', ['web', 'html', 'site', '页面', '部署', 'deploy', '上线', '发布'], 'code'],
+  ['网站', ['web', 'html', 'site'], 'code'],
+  ['网页', ['web', 'html'], 'code'],
+  ['接口', ['api'], 'code'],
+  ['爬虫', ['crawl', 'scrape', '爬'], 'intel'],
+  ['采集', ['crawl', 'scrape', '爬'], 'intel'],
+  ['截图', ['screenshot', '截屏', 'screen'], 'cua'],
+  ['表格', ['excel', 'csv', 'sheet', 'xlsx'], 'docs'],
+  ['文档', ['docx', 'word', 'pdf', 'markdown'], 'docs'],
+  ['海报', ['poster', '图像', '图片', '设计'], 'design'],
+  ['修图', ['图像', '图片'], 'design'],
+  ['视频', ['video', 'ffmpeg', '剪辑'], 'content'],
+  ['剪辑', ['video', 'ffmpeg', 'edit'], 'content'],
+  ['录音', ['whisper', 'transcri', 'audio'], 'voice'],
+  ['转文字', ['transcri', 'whisper'], 'voice'],
+  ['字幕', ['subtitle'], 'voice'],
+  ['配音', ['tts', 'voice'], 'voice'],
+  ['语音', ['tts', 'voice', 'audio'], 'voice'],
+  ['备份', ['backup', '快照'], 'ops'],
+  ['恢复', ['restore'], 'ops'],
+  ['客服', ['customer', 'chat'], 'ecom'],
+  ['上架', ['商品', 'listing', 'product'], 'ecom'],
+  ['订单', ['order'], 'ecom'],
+  ['记账', ['财务', 'invoice', 'finance'], 'ecom'],
+  ['报表', ['report', 'excel'], 'docs'],
+  ['总结', ['summar', '归纳'], 'content'],
+  ['翻译', ['translat'], 'content'],
+  ['邮件', ['email', 'mail'], 'docs'],
+  ['日程', ['calendar'], 'docs'],
+  ['提醒', ['remind', '定时'], 'docs'],
+  ['渲染', ['render'], 'three'],
+  ['建模', ['model', 'blender', '3d'], 'three'],
+  ['打印', ['print'], 'docs'],
+  ['监控', ['monitor'], 'ops'],
+  ['清理', ['clean'], 'ops'],
+  ['压缩', ['zip', '压缩'], 'ops'],
+  ['转换', ['convert', 'transcod'], 'ops'],
+  ['二维码', ['qr'], 'design'],
+  ['设计', ['design', 'svg', 'figma'], 'design']
+];
+;
+function tokens(q) {
+  const out = new Set();
+  (q.match(/[a-z0-9][a-z0-9+#._-]*/g) || []).forEach(w => { if (w.length >= 2) out.add(w); });
+  const runs = q.match(/[一-龥]+/g) || [];
+  runs.forEach(r => {
+    if (r.length === 1) return;
+    for (let i = 0; i + 2 <= r.length; i++) {
+      const g = r.slice(i, i + 2);
+      if (!CN_STOP.has(g)) out.add(g);
+    }
+  });
+  ALIAS.forEach(([k, subs]) => { if (q.includes(k)) subs.forEach(s => out.add(s)); });
+  return Array.from(out);
+}
+
+/* 口语词所对应的领域，拿来给排序一点提示，不是硬路由 */
+function hintDomains(q) {
+  const hits = [];
+  ALIAS.forEach(([k, subs, dom]) => { if (dom && q.includes(k)) hits.push(dom); });
+  return hits;
 }
 
 /* ---------- 能力体检 ---------- */
