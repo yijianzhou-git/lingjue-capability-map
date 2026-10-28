@@ -672,10 +672,14 @@ document.getElementById('calc').onclick = () => {
 };
 
 /* 支持 #open=<id> 直接打开某块（便于验证与分享） */
-if (location.hash.startsWith('#open=')) {
+function openFromHash() {
+  if (!location.hash.startsWith('#open=')) return;
   const id = location.hash.slice(6);
-  if (DATA.domains.some(d => d.id === id)) setTimeout(() => openDetail(id), 60);
+  if (DATA.domains.some(d => d.id === id)) openDetail(id, true);
 }
+if (location.hash.startsWith('#open=')) setTimeout(openFromHash, 60);
+/* 同页内改 hash（从一条分享链接跳到另一条）不会重载文档，必须监听 */
+window.addEventListener('hashchange', openFromHash);
 </script>
 </body>
 </html>
