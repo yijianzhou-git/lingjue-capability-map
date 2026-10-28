@@ -371,44 +371,43 @@ function applyFilter() {
     return;
   }
 
-  /* 先整串精确匹配；一条都不中时，按词拆开再找一次 */
-  let match = i => hay(i).includes(q);
-  let counts = DATA.domains.map(d => ({ id: d.id, n: d.items.filter(match).length, score: d.label.toLowerCase().includes(q) ? 1 : 0 }));
+  /* 先整串精确匹配；命中太少（或一条不中）时，按词拆开再找一次，取召回更好的那种 */
+  const exactMatch = i => hay(i).includes(q);
+  let match = exactMatch;
+  let counts = DATA.domains.map(d => ({ id: d.id, n: d.items.filter(exactMatch).length, score: d.label.toLowerCase().includes(q) ? 1 : 0 }));
   let hits = counts.reduce((a, c) => a + c.n, 0);
   let loose = false;
 
-  if (!hits) {
-    const toks = tokens(q);
-    if (toks.length) {
-      loose = true;
-      match = i => { const h = hay(i); return toks.some(t => h.includes(t)); };
-      /* 按词的罕见程度加权：常见词（如 app）不值钱，罕见词（如 部署）才是真正的信号 */
-      const all = DATA.domains.reduce((a, d) => a.concat(d.items), []);
-      const N = all.length || 313;
-      const w = {};
-      toks.forEach(t => {
-        const df = all.filter(it => hay(it).includes(t)).length;
-        w[t] = Math.log(1 + N / Math.max(1, df));
+  const toks = tokens(q);
+  if (toks.length && hits < 4) {
+    /* 按词的罕见程度加权：常见词（如 app）不值钱，罕见词（如 部署）才是真正的信号 */
+    const all = DATA.domains.reduce((a, d) => a.concat(d.items), []);
+    const N = all.length || 313;
+    const w = {};
+    toks.forEach(t => {
+      const df = all.filter(it => hay(it).includes(t)).length;
+      w[t] = Math.log(1 + N / Math.max(1, df));
+    });
+    const lmatch = i => { const h = hay(i); return toks.some(t => h.includes(t)); };
+    const lcounts = DATA.domains.map(d => {
+      let n = 0, sum = 0;
+      d.items.forEach(it => {
+        const h = hay(it);
+        let s = 0, m = 0;
+        toks.forEach(t => { if (h.includes(t)) { s += w[t]; m++; } });
+        if (m) { n++; sum += Math.min(s, 6); }
       });
-      counts = DATA.domains.map(d => {
-        let n = 0, sum = 0;
-        d.items.forEach(it => {
-          const h = hay(it);
-          let s = 0, m = 0;
-          toks.forEach(t => { if (h.includes(t)) { s += w[t]; m++; } });
-          if (m) { n++; sum += Math.min(s, 6); }
-        });
-        /* 领域名里就有这个词（如搜“语音”命中“语音与多模态”）就给一份加权 */
-        const lb = toks.some(t => d.label.toLowerCase().includes(t)) ? 14 : 0;
-        return { id: d.id, n, score: sum + Math.log(1 + n) * 0.4 + lb };
-      });
-      /* 口语词自带的领域提示，比按词硬猜准得多 */
-      hintDomains(q).forEach(id => {
-        const c = counts.find(x => x.id === id);
-        if (c) c.score += 12;
-      });
-      hits = counts.reduce((a, c) => a + c.n, 0);
-    }
+      /* 领域名里就有这个词（如搜“语音”命中“语音与多模态”）就给一份加权 */
+      const lb = toks.some(t => d.label.toLowerCase().includes(t)) ? 14 : 0;
+      return { id: d.id, n, score: sum + Math.log(1 + n) * 0.4 + lb };
+    });
+    /* 口语词自带的领域提示，比按词硬猜准得多 */
+    hintDomains(q).forEach(id => {
+      const c = lcounts.find(x => x.id === id);
+      if (c) c.score += 12;
+    });
+    const lhits = lcounts.reduce((a, c) => a + c.n, 0);
+    if (lhits > hits) { counts = lcounts; match = lmatch; hits = lhits; loose = true; }
   }
 
   const best = counts.slice().sort((a, b) => (b.score - a.score) || (b.n - a.n))[0];
@@ -419,9 +418,36 @@ function applyFilter() {
     t.querySelector('.num').textContent = c.n ? c.n : 0;
   });
 
+  /* 整串就是某个领域名（如“语音”“文档”）时，不要把它拆碎——直接整块展开 */
+  const lmQ = q.length >= 2 ? DATA.domains.find(d => d.label.toLowerCase().includes(q)) : null;
+  if (lmQ) {
+    suppressFilter = true; openDetail(lmQ.id, true); suppressFilter = false;
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('hide'));
+    document.getElementById('hint').textContent = '「' + lmQ.label + '」共 ' + lmQ.count + ' 项';
+    return;
+  }
+
   if (!hits) {
     /* 整串直接就是一个领域名时（如“语音”“系统”），打开那个领域比报“没找到”有用 */
     const lm = DATA.domains.find(d => d.label.toLowerCase().includes(q));
+    if (!lm) {
+      /* 说法没有直接对应的条目，但词义上有明确归属（如“竞品比价”→“情报与研究”），
+         展开那一块比甩一句“没找到”有用 */
+      const hm = DATA.domains.find(d => hintDomains(q).includes(d.id));
+      if (hm) {
+        suppressFilter = true; openDetail(hm.id, true); suppressFilter = false;
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('hide'));
+        document.getElementById('hint').textContent =
+          '没有正中靶心的条目，先展开「' + hm.label + '」（' + hm.count + ' 项）看看';
+        return;
+      }
+    }
+    if (lm) {
+      suppressFilter = true; openDetail(lm.id, true); suppressFilter = false;
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('hide'));
+      document.getElementById('hint').textContent = '「' + lm.label + '」共 ' + lm.count + ' 项';
+      return;
+    }
     if (lm) {
       suppressFilter = true; openDetail(lm.id, true); suppressFilter = false;
       document.querySelectorAll('.card').forEach(c => c.classList.remove('hide'));
@@ -497,7 +523,16 @@ const ALIAS = [
   ['压缩', ['zip', '压缩'], 'ops'],
   ['转换', ['convert', 'transcod'], 'ops'],
   ['二维码', ['qr'], 'design'],
-  ['设计', ['design', 'svg', 'figma'], 'design']
+  ['设计', ['design', 'svg', 'figma'], 'design'],
+  ['竞品', ['爬', '采集', '监控', 'crawl', 'scrape'], 'intel'],
+  ['比价', ['爬', '采集', '监控', 'crawl', 'scrape'], 'intel'],
+  ['价格', ['爬', '采集', '监控', 'crawl', 'scrape'], 'intel'],
+  ['选品', ['商品', 'listing', 'product'], 'ecom'],
+  ['竞店', ['商品', '店铺', 'shopee', 'listing'], 'ecom'],
+  ['口播', ['视频', '字幕', '音频', 'video', 'script'], 'content'],
+  ['竖版', ['视频', 'video'], 'content'],
+  ['竖屏', ['视频', 'video'], 'content'],
+  ['剪', ['剪辑', '视频', 'video', 'ffmpeg'], 'content']
 ];
 ;
 function tokens(q) {
